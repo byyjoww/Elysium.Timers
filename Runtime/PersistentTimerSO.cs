@@ -11,7 +11,8 @@ namespace Elysium.Timers
     [CreateAssetMenu(fileName = "TimerSO_", menuName = "Scriptable Objects/Persistent Timer")]
     public class PersistentTimerSO : ScriptableObject, ISavable
     {
-        [SerializeField] private bool repeat = default;
+        // TODO: Add support for non-repeating timers
+        private bool repeat = true;
         [SerializeField] private bool startByDefault = default;
         [SerializeField] private float defaultInitial = default;
 
