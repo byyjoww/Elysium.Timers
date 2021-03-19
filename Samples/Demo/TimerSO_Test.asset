@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b9fc4ea985d27a4493ddee132d7bcb2, type: 3}
   m_Name: TimerSO_Test
   m_EditorClassIdentifier: 
-  repeat: 1
+  repeat: 0
   startByDefault: 0
   defaultInitial: 5
   initial: 0

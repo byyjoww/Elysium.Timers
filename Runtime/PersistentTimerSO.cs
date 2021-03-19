@@ -11,8 +11,7 @@ namespace Elysium.Timers
     [CreateAssetMenu(fileName = "TimerSO_", menuName = "Scriptable Objects/Persistent Timer")]
     public class PersistentTimerSO : ScriptableObject, ISavable
     {
-        // TODO: Add support for non-repeating timers
-        private bool repeat = true;
+        [SerializeField] private bool repeat = true;
         [SerializeField] private bool startByDefault = default;
         [SerializeField] private float defaultInitial = default;
 
@@ -28,7 +27,8 @@ namespace Elysium.Timers
 
         private long CurrentUnixTime => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         private float Elapsed => CurrentUnixTime - last;
-        public ushort Size => sizeof(float) * 2 + sizeof(long) + sizeof(int);        
+        public ushort Size => sizeof(float) * 2 + sizeof(long) + sizeof(int);
+        public bool IsEnded => current <= 0 && !repeat;
 
         private TimerInstance RuntimeTimer
         {
@@ -88,14 +88,22 @@ namespace Elysium.Timers
                 float min = Mathf.Min(elapsed, current);
                 elapsed -= min;
                 current -= min;
+
                 if (current <= 0)
                 {
-                    current += initial;
-                    cycles++;
+                    if (repeat) 
+                    {
+                        current += initial;
+                        cycles++;
+                    }
+                    else
+                    {
+                        current = 0;
+                        cycles = 1;
+                        elapsed = 0;
+                    }
                 }
             }
-
-            OnValueChanged?.Invoke();
         }        
 
         public void Load(BinaryReader _reader) 
@@ -108,7 +116,7 @@ namespace Elysium.Timers
             Debug.Log($"Elapsed Seconds: {Elapsed}");
             HandleAFKIterations();            
 
-            if (initial != 0)
+            if (initial != 0 && !IsEnded)
             {
                 RuntimeTimer.SetTime(current);
             }
