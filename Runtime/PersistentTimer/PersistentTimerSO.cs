@@ -28,7 +28,14 @@ namespace Elysium.Timers
         private long CurrentUnixTime => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         private float Elapsed => CurrentUnixTime - last;
         public bool IsEnded => current <= 0 && !repeat;
-        public ushort Size => sizeof(float) * 2 + sizeof(long) + sizeof(int);        
+        public int Cycles => cycles;
+        public ushort Size => sizeof(float) * 2 + sizeof(long) + sizeof(int);
+
+        public bool Repeat
+        {
+            get => repeat;
+            set => repeat = value;
+        }
 
         private TimerInstance RuntimeTimer
         {
@@ -46,15 +53,16 @@ namespace Elysium.Timers
             }
         }
 
-        public void StartNewTimer(float _time)
+        public void StartNewTimer(float _time, bool resetCycles = true)
         {
             if (_time <= 0) { throw new System.Exception("trying to start a 0 or less timer!"); }
-
+           
             initial = _time;
+            if (resetCycles) { cycles = 0; }
             RuntimeTimer.SetTime(initial);
         }
 
-        public int GetAndResetCycles()
+        public int ExtractCycles()
         {
             if (cycles <= 0) { return 0; }
 
@@ -68,7 +76,7 @@ namespace Elysium.Timers
         private void UpdateCurrent()
         {
             last = CurrentUnixTime;
-            current = RuntimeTimer.Time;
+            current = Mathf.Max(0, RuntimeTimer.Time);
             OnValueChanged?.Invoke();
         }
 
@@ -81,11 +89,19 @@ namespace Elysium.Timers
             if (repeat) { RuntimeTimer.SetTime(initial); }            
         }
 
-        private void HandleAFKIterations()
+        private void CalculateAFKIterations()
         {
-            var elapsed = Elapsed + (initial - current);
+            if (IsEnded) { return; }
+
+            float elapsed = Elapsed + (initial - current);
             cycles += (int)(elapsed / initial);
             current = initial - (elapsed % initial);
+
+            if (!repeat)
+            {
+                cycles = Mathf.Min(cycles, 1);
+                if (cycles > 0) { current = 0; }
+            }
         }
 
         public void Load(BinaryReader _reader) 
@@ -95,11 +111,14 @@ namespace Elysium.Timers
             last = _reader.ReadInt64();
             cycles = _reader.ReadInt32();
 
-            Debug.Log($"Elapsed Seconds: {Elapsed}");
-            HandleAFKIterations();            
+            Debug.Log($"Elapsed Seconds: {Elapsed}");            
+            CalculateAFKIterations();
 
+            Debug.Log($"IsEnded: {IsEnded}");
             if (initial != 0 && !IsEnded)
             {
+                // Continue Timer
+                Debug.Log($"Continuing Timer");
                 RuntimeTimer.SetTime(current);
             }
         }
