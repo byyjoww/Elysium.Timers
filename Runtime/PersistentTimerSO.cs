@@ -27,8 +27,8 @@ namespace Elysium.Timers
 
         private long CurrentUnixTime => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         private float Elapsed => CurrentUnixTime - last;
-        public ushort Size => sizeof(float) * 2 + sizeof(long) + sizeof(int);
         public bool IsEnded => current <= 0 && !repeat;
+        public ushort Size => sizeof(float) * 2 + sizeof(long) + sizeof(int);        
 
         private TimerInstance RuntimeTimer
         {
@@ -48,18 +48,19 @@ namespace Elysium.Timers
 
         public void StartNewTimer(float _time)
         {
-            if (_time == 0) { throw new System.Exception("trying to start a 0 timer!"); }
+            if (_time <= 0) { throw new System.Exception("trying to start a 0 or less timer!"); }
 
             initial = _time;
-            OnValueChanged?.Invoke();
             RuntimeTimer.SetTime(initial);
         }
 
         public int GetAndResetCycles()
         {
+            if (cycles <= 0) { return 0; }
+
             int count = cycles;
             cycles = 0;
-
+            
             OnValueChanged?.Invoke();
             return count;
         }
@@ -82,29 +83,10 @@ namespace Elysium.Timers
 
         private void HandleAFKIterations()
         {
-            float elapsed = Elapsed;
-            while(elapsed > 0)
-            {
-                float min = Mathf.Min(elapsed, current);
-                elapsed -= min;
-                current -= min;
-
-                if (current <= 0)
-                {
-                    if (repeat) 
-                    {
-                        current += initial;
-                        cycles++;
-                    }
-                    else
-                    {
-                        current = 0;
-                        cycles = 1;
-                        elapsed = 0;
-                    }
-                }
-            }
-        }        
+            var elapsed = Elapsed + (initial - current);
+            cycles += (int)(elapsed / initial);
+            current = initial - (elapsed % initial);
+        }
 
         public void Load(BinaryReader _reader) 
         {
@@ -126,7 +108,7 @@ namespace Elysium.Timers
         {
             initial = defaultInitial;
             current = 0f;
-            last = DateTimeOffset.MinValue.ToUnixTimeSeconds();
+            last = CurrentUnixTime;
             cycles = 0;
 
             if (startByDefault) { StartNewTimer(defaultInitial); }
